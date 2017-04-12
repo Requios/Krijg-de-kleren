@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 class Spring
 {
@@ -49,6 +50,8 @@ public class ClothScript : MonoBehaviour
 
     private Vector3 spherePos;
     private float sphereRadius;
+
+    private float windRandom;
 
     public enum Fixed
     {
@@ -203,7 +206,10 @@ public class ClothScript : MonoBehaviour
                 // gravity 
                 forces[i].y -= 9.81f/invmass;
                 // wind
-                forces[i] += windVector + windVector.normalized * (0.5f * Mathf.Sin(Time.time));
+                //forces[i] += windVector + windVector.normalized * (0.5f * Mathf.Sin(Time.time));
+                if (Time.frameCount % 30 == 0) //pick a new value every so many frames
+                    windRandom = Random.Range(0.2f, 1f);
+                forces[i] += windVector * windRandom * Random.Range(0.8f, 1.2f);
             }
             
             // velocity damping
