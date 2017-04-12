@@ -60,9 +60,9 @@ public class ClothScript : MonoBehaviour
             for (int x = 0; x < (width-1); x++)
             {
                 // top left to bottom right
-                springs[idx++] = new Spring(y * width + x, (y+1) * width + x+1, Mathf.Sqrt(2) * distance); 
+                springs[idx++] = new Spring(y * width + x, (y + 1) * width + x + 1, Mathf.Sqrt(distance * distance));
                 // bottom left to top right
-                springs[idx++] = new Spring((y+1) * width + x, y * width + x+1, Mathf.Sqrt(2) * distance);
+                springs[idx++] = new Spring((y + 1) * width + x, y * width + x + 1, Mathf.Sqrt(distance * distance));
             }
         }
         Debug.Assert(springs.Length == idx);
@@ -79,7 +79,7 @@ public class ClothScript : MonoBehaviour
         {
             for (int j = 0; j < width; j++)
             {
-                vertices[i * width + j] = new Vector3(j * distance, 0, i * distance) + initialPos;
+                vertices[i * width + j] = new Vector3(j * distance, -i * distance, 0) + initialPos;
             }
         }
         mesh.vertices = vertices;
