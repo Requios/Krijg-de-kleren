@@ -5,18 +5,14 @@ using UnityEngine;
 
 class Spring
 {
-    public Spring(int fst, int snd, float length, float spring=1000f, float damp=-10f)
+    public Spring(int fst, int snd, float length)
     {
         v1 = fst;
         v2 = snd;
         restLength = length;
-        springFactor = spring;
-        dampingFactor = damp;
     }
     public int v1, v2;
     public float restLength;
-    public float springFactor;
-    public float dampingFactor; 
 }
 
 public class ClothScript : MonoBehaviour
@@ -32,13 +28,21 @@ public class ClothScript : MonoBehaviour
     [Tooltip("Whether to start flat")]
     public bool startHorizontal = true;
     public float stretchedStart = 1.5f;
+
     [Header("Behavior")]
     public Fixed fixedVertices = Fixed.topCorners;
     public float invmass = 1f;
-    public float dampingFactor = 0.5f;
+    [Tooltip("How strong the forces of the spring are. Higher is stronger.")]
+    public float springFactor = 1000f;
+    [Tooltip("How strong the springs are dampened (preventing infinite oscillation). Higher is stronger.")]
+    public float dampingFactor = -10f;
+    [Tooltip("Velocity damping. Lower is stronger.")]
+    [Range(0,1)]
+    public float airResistance = 0.5f;
     public Vector3 windVector;
     [Tooltip("How much to stay away from collisions to prevent penetration")]
     public float collisionDelta = 0.1f;
+
     private Vector3[] prevPos;
     private Vector3[] currPos;
     private Spring[] springs;
@@ -190,8 +194,6 @@ public class ClothScript : MonoBehaviour
         int[] triangles = mesh.triangles;
         //if changing mesh.triangles (when tearing) call mesh.Clear() first
 
-        //TODO: collide with floor (and sphere later)
-
         Vector3[] forces = new Vector3[width * height];
         for (int i = 0; i < (width * height); i++)
         {
@@ -205,7 +207,7 @@ public class ClothScript : MonoBehaviour
             }
             
             // velocity damping
-            forces[i] -= dampingFactor * velocity(i);
+            forces[i] -= airResistance * velocity(i);
         }
 
         //solve springs with Linear Strain model (Hooke's Law)
@@ -214,8 +216,8 @@ public class ClothScript : MonoBehaviour
             Vector3 dpos = currPos[springs[i].v1] - currPos[springs[i].v2];
             Vector3 dvel = velocity(springs[i].v1) - velocity(springs[i].v2);
             float dist = dpos.magnitude;
-            float spring = -springs[i].springFactor * (dist - springs[i].restLength);
-            float damp = springs[i].dampingFactor * (Vector3.Dot(dvel, dpos) / dist);
+            float spring = -springFactor * (dist - springs[i].restLength);
+            float damp = dampingFactor * (Vector3.Dot(dvel, dpos) / dist);
             Vector3 force = (spring + damp) * dpos.normalized;
             if (!isFixed(springs[i].v1))
             {
