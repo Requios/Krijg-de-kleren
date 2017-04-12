@@ -29,8 +29,11 @@ public class ClothScript : MonoBehaviour
     [Tooltip("Number of particles vertically")]
     public int height = 11;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
+    [Tooltip("Whether to start flat")]
+    public bool startHorizontal = true;
     public float stretchedStart = 1.5f;
     [Header("Behavior")]
+    public Fixed fixedVertices = Fixed.topCorners;
     public float invmass = 1f;
     public float dampingFactor = 0.5f;
     public Vector3 windVector;
@@ -42,6 +45,14 @@ public class ClothScript : MonoBehaviour
 
     private Vector3 spherePos;
     private float sphereRadius;
+
+    public enum Fixed
+    {
+        topCorners,
+        topLine,
+        leftCorners,
+        leftLine
+    }
 
     Vector3 velocity(int i)
     {
@@ -92,7 +103,10 @@ public class ClothScript : MonoBehaviour
         {
             for (int j = 0; j < width; j++)
             {
-                vertices[i * width + j] = new Vector3(j * distance * stretchedStart, 0, i * distance) + initialPos;
+                if (startHorizontal)
+                    vertices[i * width + j] = new Vector3(j * distance * stretchedStart, 0, i * distance * stretchedStart) + initialPos;
+                else
+                    vertices[i * width + j] = new Vector3(j * distance * stretchedStart, -i * distance * stretchedStart, 0) + initialPos;
             }
         }
         mesh.vertices = vertices;
@@ -155,8 +169,18 @@ public class ClothScript : MonoBehaviour
 
     bool isFixed(int i)
     {
-        int c = 1;//Math.Max(1, width / 3);
-        return (i < c) || ((i >= (width - c)) && (i < width));
+        switch (fixedVertices)
+        {
+            case Fixed.topCorners:
+                return i == 0 || i == width - 1;
+            case Fixed.topLine:
+                return i < width;
+            case Fixed.leftCorners:
+                return i == 0 || i == width * (height - 1);
+            case Fixed.leftLine:
+                return i % width == 0;
+        }
+        return false;
     }
 
     void FixedUpdate()
