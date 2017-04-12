@@ -24,8 +24,8 @@ public class ClothScript : MonoBehaviour
     public float distance = 1f;
     public int width = 11;
     public int height = 11;
-    public float invmass = 100f;
-    public float deltaTime = 1f/30f;
+    public float invmass = 1f;
+    public float dampingFactor = 0.2f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
     public Vector3 windVector = new Vector3(2, 4, 5) * 0.3f;
     private Vector3[] prevPos;
@@ -34,7 +34,7 @@ public class ClothScript : MonoBehaviour
 
     Vector3 velocity(int i)
     {
-        return (currPos[i] - prevPos[i]) / deltaTime;
+        return (currPos[i] - prevPos[i]) / Time.fixedDeltaTime;
     }
 
     void buildSprings()
@@ -124,7 +124,7 @@ public class ClothScript : MonoBehaviour
 
 
 
-    void Update()
+    void FixedUpdate()
     {
         Mesh mesh = GetComponent<MeshFilter>().mesh;
         currPos = mesh.vertices;
@@ -144,10 +144,9 @@ public class ClothScript : MonoBehaviour
                 // wind
                 forces[i] += windVector+windVector.normalized * (0.1f * Mathf.Sin(Time.time));
             }
-
-
+            
             // velocity damping
-            forces[i] -= 2.0f * velocity(i);
+            forces[i] -= dampingFactor * velocity(i);
         }
 
         //solve springs with Linear Strain model (Hooke's Law)
@@ -173,14 +172,14 @@ public class ClothScript : MonoBehaviour
         for (int i = 0; i < (width * height); i++)
         {
             Vector3 tmp = currPos[i];
-            currPos[i] = currPos[i] + (currPos[i] - prevPos[i]) + forces[i]*(deltaTime * deltaTime * invmass);
+            currPos[i] = currPos[i] + (currPos[i] - prevPos[i]) + forces[i]*(Time.fixedDeltaTime * Time.fixedDeltaTime * invmass);
             prevPos[i] = tmp;
 
+            // collision
             // ground plane
-            //vertices[i].y = Mathf.Max(0, vertices[i].y);
+            currPos[i].y = Mathf.Max(0, currPos[i].y);
         }
-
-
+        
         mesh.vertices = currPos;
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
