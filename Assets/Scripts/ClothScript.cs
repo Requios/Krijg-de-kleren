@@ -21,16 +21,27 @@ class Spring
 
 public class ClothScript : MonoBehaviour
 {
+    [Header("Creation")]
+    [Tooltip("Distance between cloth particles")]
     public float distance = 1f;
+    [Tooltip("Number of particles horizontally")]
     public int width = 11;
+    [Tooltip("Number of particles vertically")]
     public int height = 11;
-    public float invmass = 1f;
-    public float dampingFactor = 0.2f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
+    public float stretchedStart = 1.5f;
+    [Header("Behavior")]
+    public float invmass = 1f;
+    public float dampingFactor = 0.5f;
     public Vector3 windVector;
+    [Tooltip("How much to stay away from collisions to prevent penetration")]
+    public float collisionDelta = 0.1f;
     private Vector3[] prevPos;
     private Vector3[] currPos;
     private Spring[] springs;
+
+    private Vector3 spherePos;
+    private float sphereRadius;
 
     Vector3 velocity(int i)
     {
@@ -81,7 +92,7 @@ public class ClothScript : MonoBehaviour
         {
             for (int j = 0; j < width; j++)
             {
-                vertices[i * width + j] = new Vector3(j * distance, 0, i * distance) + initialPos;
+                vertices[i * width + j] = new Vector3(j * distance * stretchedStart, 0, i * distance) + initialPos;
             }
         }
         mesh.vertices = vertices;
@@ -120,12 +131,20 @@ public class ClothScript : MonoBehaviour
         }
         mesh.normals = normals;
 
+        //Find sphere
+        GameObject sphere = GameObject.Find("Sphere");
+        if (sphere)
+        {
+            spherePos = sphere.transform.position;
+            sphereRadius = sphere.transform.localScale.x / 2f;
+        }
+
         buildSprings();
     }
 
     bool isFixed(int i)
     {
-        int c = Math.Max(1, width / 3);
+        int c = 1;//Math.Max(1, width / 3);
         return (i < c) || ((i >= (width - c)) && (i < width));
     }
 
@@ -182,7 +201,13 @@ public class ClothScript : MonoBehaviour
 
             // collision
             // ground plane
-            currPos[i].y = Mathf.Max(0, currPos[i].y);
+            currPos[i].y = Mathf.Max(collisionDelta, currPos[i].y);
+
+            // sphere
+            if ((currPos[i] - spherePos).magnitude < sphereRadius + collisionDelta)
+            {
+                currPos[i] = spherePos + (currPos[i] - spherePos).normalized * (sphereRadius + collisionDelta);
+            }
         }
         
         mesh.vertices = currPos;
