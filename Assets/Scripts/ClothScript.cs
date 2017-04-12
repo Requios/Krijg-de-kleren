@@ -5,7 +5,7 @@ using UnityEngine;
 
 class Spring
 {
-    public Spring(int fst, int snd, float length, float spring=0.8f, float damp=-0.5f)
+    public Spring(int fst, int snd, float length, float spring=0.5f, float damp=-0.3f)
     {
         v1 = fst;
         v2 = snd;
@@ -24,14 +24,14 @@ public class ClothScript : MonoBehaviour
     public float distance = 1f;
     public int width = 11;
     public int height = 11;
-    public float invmass = 1f;
+    public float invmass = 5f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
     private Vector3[] velocities;
     private Spring[] springs;
 
     void buildSprings()
     {
-        springs = new Spring[(width - 1) * (height - 1)];
+        springs = new Spring[height*(width-1) + (height-1)*width + 2*((height-1)*(width-1))];
         int idx = 0;
         // horizontal springs
         for (int y = 0; y < height; y++) {
@@ -55,10 +55,10 @@ public class ClothScript : MonoBehaviour
                 // top left to bottom right
                 springs[idx++] = new Spring(y * width + x, (y+1) * width + x+1, Mathf.Sqrt(2)); 
                 // bottom left to top right
-                springs[idx++] = new Spring((y+1) * width + x, y * width + x+1, Mathf.Sqrt(2));
+                springs[idx++] = new Spring((y+1) * width + x, y * width + x+1, 0.5f*Mathf.Sqrt(2));
             }
         }
-
+        Debug.Assert(springs.Length == idx);
     }
 
     void Start()
@@ -120,18 +120,28 @@ public class ClothScript : MonoBehaviour
         //TODO: collide with floor (and sphere later)
 
         Vector3[] forces = new Vector3[width * height];
+        for (int i = 0; i < (width * height); i++)
+        {
+            forces[i] = new Vector3(0, 0, 0);
+            // gravity 
+            if (i != 0 && i != (width - 1))
+            {
+                velocities[i].y -= 9.81f * Time.deltaTime;
+            }
+
+            // velocity damping
+            forces[i] -= 0.2f * velocities[i];
+        }
 
         //solve springs with Linear Strain model (Hooke's Law)
-        for(int i=0; i<springs.Length; i++)
+        for (int i=0; i<springs.Length; i++)
         {
-            Vector3 pos1 = vertices[springs[i].v1];
-            Vector3 pos2 = vertices[springs[i].v2];
-            Vector3 vel1 = velocities[springs[i].v1];
-            Vector3 vel2 = velocities[springs[i].v2];
-            float dist = (pos1 - pos2).magnitude;
-            float spring  = -springs[i].springFactor * (dist - springs[i].restLength);
-            float damp = springs[i].dampingFactor * (Vector3.Dot(vel1 - vel2, pos1 - pos2) / dist);
-            Vector3 force = (spring + damp) * (pos1 - pos2).normalized;
+            Vector3 dpos = vertices[springs[i].v1] - vertices[springs[i].v2];
+            Vector3 dvel = velocities[springs[i].v1] - velocities[springs[i].v2];
+            float dist = dpos.magnitude;
+            float spring = -springs[i].springFactor * (dist - springs[i].restLength);
+            float damp = springs[i].dampingFactor * (Vector3.Dot(dvel, dpos) / dist);
+            Vector3 force = (spring + damp) * dpos.normalized;
             if(springs[i].v1 != 0 && springs[i].v1 != (width - 1))
             {
                 forces[springs[i].v1] += force;
@@ -142,19 +152,9 @@ public class ClothScript : MonoBehaviour
             }
         }
 
-       
-        for(int i=0; i<(width*height); i++)
+        // explicit euler
+        for (int i = 0; i < (width * height); i++)
         {
-            // gravity 
-            if (i != 0 && i != (width - 1))
-            {
-                velocities[i].y -= 9.81f * Time.deltaTime;
-            }
-
-            // velocity damping
-            forces[i] -= 0.2f * velocities[i];
-            
-            // explicit euler
             Vector3 prev = velocities[i];
             velocities[i] += forces[i] * Time.deltaTime * invmass;
             vertices[i] += prev * Time.deltaTime;
