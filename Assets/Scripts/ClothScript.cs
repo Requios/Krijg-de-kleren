@@ -3,16 +3,63 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+class Spring
+{
+    public Spring(int fst, int snd, float length, float spring=0.8f, float damp=-0.5f)
+    {
+        v1 = fst;
+        v2 = snd;
+        restLength = length;
+        springFactor = spring;
+        dampingFactor = damp;
+    }
+    public int v1, v2;
+    public float restLength;
+    public float springFactor;
+    public float dampingFactor; 
+}
+
 public class ClothScript : MonoBehaviour
 {
     public float distance = 1f;
     public int width = 11;
     public int height = 11;
-    public float springFactor = 10f;
-    public float dampingFactor= 10f;
     public float invmass = 1f;
-    public Vector3 initialPos = new Vector3(-5, 12, 0);
+    public Vector3 initialPos = new Vector3(-5, 15, 0);
     private Vector3[] velocities;
+    private Spring[] springs;
+
+    void buildSprings()
+    {
+        springs = new Spring[(width - 1) * (height - 1)];
+        int idx = 0;
+        // horizontal springs
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < (width - 1); x++)
+            {
+                springs[idx++] = new Spring(y * width + x, y * width + x + 1, 1f);
+            }
+        }
+        // vertical springs
+        for (int y = 0; y < (height-1); y++) {
+            for (int x = 0; x < width; x++)
+            {
+                springs[idx++] = new Spring(y * width + x, (y+1) * width + x, 1f);
+            }
+        }
+        // diagonal springs
+        for (int y=0; y<(height-1); y++)
+        {
+            for (int x = 0; x < (width-1); x++)
+            {
+                // top left to bottom right
+                springs[idx++] = new Spring(y * width + x, (y+1) * width + x+1, Mathf.Sqrt(2)); 
+                // bottom left to top right
+                springs[idx++] = new Spring((y+1) * width + x, y * width + x+1, Mathf.Sqrt(2));
+            }
+        }
+
+    }
 
     void Start()
     {
@@ -59,20 +106,10 @@ public class ClothScript : MonoBehaviour
             normals[i] = Vector3.back;
         }
         mesh.normals = normals;
+
+        buildSprings();
     }
 
-    // Linear Strain model (Hooke's Law)
-    Vector3 dvel(Vector3 r, Vector3 v)
-    {
-        float spring = springFactor * (r.magnitude - distance);
-        float damp = dampingFactor * Vector3.Dot(v, r.normalized);
-        Vector3 f = r.normalized * (spring + damp);
-        Vector3 a = f * invmass;
-        Vector3 vel = a * Time.deltaTime;
-        Debug.LogFormat("spring:{0} damp:{1} f:{2} a:{3} v:{4}", spring, damp, f, a, v);
-        return vel;
-    }
- 
     void Update()
     {
         Mesh mesh = GetComponent<MeshFilter>().mesh;
@@ -80,44 +117,51 @@ public class ClothScript : MonoBehaviour
         int[] triangles = mesh.triangles;
         //if changing mesh.triangles (when tearing) call mesh.Clear() first
 
-        //gravity
-        for (int i = 0; i < velocities.Length; i++)
+        //TODO: collide with floor (and sphere later)
+
+        Vector3[] forces = new Vector3[width * height];
+
+        //solve springs with Linear Strain model (Hooke's Law)
+        for(int i=0; i<springs.Length; i++)
         {
+            Vector3 pos1 = vertices[springs[i].v1];
+            Vector3 pos2 = vertices[springs[i].v2];
+            Vector3 vel1 = velocities[springs[i].v1];
+            Vector3 vel2 = velocities[springs[i].v2];
+            float dist = (pos1 - pos2).magnitude;
+            float spring  = -springs[i].springFactor * (dist - springs[i].restLength);
+            float damp = springs[i].dampingFactor * (Vector3.Dot(vel1 - vel2, pos1 - pos2) / dist);
+            Vector3 force = (spring + damp) * (pos1 - pos2).normalized;
+            if(springs[i].v1 != 0 && springs[i].v1 != (width - 1))
+            {
+                forces[springs[i].v1] += force;
+            }
+            if(springs[i].v2 != 0 && springs[i].v2 != (width - 1))
+            {
+                forces[springs[i].v2] -= force;
+            }
+        }
+
+       
+        for(int i=0; i<(width*height); i++)
+        {
+            // gravity 
             if (i != 0 && i != (width - 1))
             {
                 velocities[i].y -= 9.81f * Time.deltaTime;
             }
-        }
 
-        //apply velocities
-        for (int i = 0; i < vertices.Length; i++)
-        {
-            vertices[i] += velocities[i] * Time.deltaTime;
-        }
+            // velocity damping
+            forces[i] -= 0.2f * velocities[i];
+            
+            // explicit euler
+            Vector3 prev = velocities[i];
+            velocities[i] += forces[i] * Time.deltaTime * invmass;
+            vertices[i] += prev * Time.deltaTime;
 
-        //collide with floor (and sphere later)
-
-        //solve springs
-        for (int y = 0; y < width-1; y++)
-        {
-            for (int x = 0; x < height-1; x++)
-            {
-                int w = width - 1;
-                int h = height - 1;
-                if (x == 0 && y == 0) continue;
-                if (x == w && y == 0) continue;
-                int i = y * width + x;
-                if (x > 0) velocities[i] += dvel(vertices[i-1]   - vertices[i], 
-                                                 velocities[i-1] - velocities[i]);
-                if (x < w) velocities[i] += dvel(vertices[i+1]   - vertices[i],
-                                                 velocities[i+1] - velocities[i]);
-                if (y > 0) velocities[i] += dvel(vertices[i-width]   - vertices[i], 
-                                                 velocities[i-width] - velocities[i]);
-                if (y < h) velocities[i] += dvel(vertices[i+width]   - vertices[i], 
-                                                 velocities[i+width] - velocities[i]);
-            }
+            // ground plane
+            //vertices[i].y = Mathf.Max(0, vertices[i].y);
         }
-        
 
         mesh.vertices = vertices;
         mesh.RecalculateBounds();
