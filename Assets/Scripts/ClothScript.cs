@@ -26,6 +26,7 @@ public class ClothScript : MonoBehaviour
     public int height = 11;
     public float invmass = 100f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
+    public Vector3 windVector = new Vector3(2, 4, 5) * 0.3f;
     private Vector3[] prevPos;
     private Vector3[] currPos;
     private Spring[] springs;
@@ -135,11 +136,14 @@ public class ClothScript : MonoBehaviour
         for (int i = 0; i < (width * height); i++)
         {
             forces[i] = new Vector3(0, 0, 0);
-            // gravity 
             if (i != 0 && i != (width - 1))
             {
+                // gravity 
                 forces[i].y -= 9.81f/invmass;
+                // wind
+                forces[i] += windVector+windVector.normalized * (0.1f * Mathf.Sin(Time.time));
             }
+
 
             // velocity damping
             forces[i] -= 0.2f * velocity(i);
