@@ -5,7 +5,7 @@ using UnityEngine;
 
 class Spring
 {
-    public Spring(int fst, int snd, float length, float spring=10f, float damp=-10f)
+    public Spring(int fst, int snd, float length, float spring=500f, float damp=-10f)
     {
         v1 = fst;
         v2 = snd;
@@ -26,8 +26,14 @@ public class ClothScript : MonoBehaviour
     public int height = 11;
     public float invmass = 100f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
-    private Vector3[] velocities;
+    private Vector3[] prevPos;
+    private Vector3[] currPos;
     private Spring[] springs;
+
+    Vector3 velocity(int i)
+    {
+        return (currPos[i] - prevPos[i]) / Time.deltaTime;
+    }
 
     void buildSprings()
     {
@@ -37,14 +43,14 @@ public class ClothScript : MonoBehaviour
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < (width - 1); x++)
             {
-                springs[idx++] = new Spring(y * width + x, y * width + x + 1, 1f);
+                springs[idx++] = new Spring(y * width + x, y * width + x + 1, 1);
             }
         }
         // vertical springs
         for (int y = 0; y < (height-1); y++) {
             for (int x = 0; x < width; x++)
             {
-                springs[idx++] = new Spring(y * width + x, (y+1) * width + x, 1f);
+                springs[idx++] = new Spring(y * width + x, (y+1) * width + x, 1);
             }
         }
         // diagonal springs
@@ -77,7 +83,11 @@ public class ClothScript : MonoBehaviour
         }
         mesh.vertices = vertices;
         mesh.RecalculateBounds();
-        velocities = new Vector3[width * height];
+        prevPos = new Vector3[width * height];
+        for(int i=0; i<vertices.Length; i++)
+        {
+            prevPos[i] = vertices[i];
+        }
 
         //Create triangles
         //Two triangles between square of vertices
@@ -110,10 +120,12 @@ public class ClothScript : MonoBehaviour
         buildSprings();
     }
 
+
+
     void Update()
     {
         Mesh mesh = GetComponent<MeshFilter>().mesh;
-        Vector3[] vertices = mesh.vertices;
+        currPos = mesh.vertices;
         int[] triangles = mesh.triangles;
         //if changing mesh.triangles (when tearing) call mesh.Clear() first
 
@@ -130,14 +142,14 @@ public class ClothScript : MonoBehaviour
             }
 
             // velocity damping
-            forces[i] -= 0.2f * velocities[i];
+            forces[i] -= 0.2f * velocity(i);
         }
 
         //solve springs with Linear Strain model (Hooke's Law)
         for (int i=0; i<springs.Length; i++)
         {
-            Vector3 dpos = vertices[springs[i].v1] - vertices[springs[i].v2];
-            Vector3 dvel = velocities[springs[i].v1] - velocities[springs[i].v2];
+            Vector3 dpos = currPos[springs[i].v1] - currPos[springs[i].v2];
+            Vector3 dvel = velocity(springs[i].v1) - velocity(springs[i].v2);
             float dist = dpos.magnitude;
             float spring = -springs[i].springFactor * (dist - springs[i].restLength);
             float damp = springs[i].dampingFactor * (Vector3.Dot(dvel, dpos) / dist);
@@ -152,18 +164,19 @@ public class ClothScript : MonoBehaviour
             }
         }
 
-        // explicit euler
+        // verlet integration
         for (int i = 0; i < (width * height); i++)
         {
-            Vector3 prev = velocities[i];
-            velocities[i] += forces[i] * Time.deltaTime * invmass;
-            vertices[i] += prev * Time.deltaTime;
+            Vector3 tmp = currPos[i];
+            currPos[i] = currPos[i] + (currPos[i] - prevPos[i]) + forces[i]*(Time.deltaTime * Time.deltaTime * invmass);
+            prevPos[i] = tmp;
 
             // ground plane
             //vertices[i].y = Mathf.Max(0, vertices[i].y);
         }
 
-        mesh.vertices = vertices;
+
+        mesh.vertices = currPos;
         mesh.RecalculateBounds();
         mesh.RecalculateNormals();
     }
