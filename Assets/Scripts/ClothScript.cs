@@ -5,7 +5,7 @@ using UnityEngine;
 
 class Spring
 {
-    public Spring(int fst, int snd, float length, float spring=0.5f, float damp=-0.3f)
+    public Spring(int fst, int snd, float length, float spring=10f, float damp=-10f)
     {
         v1 = fst;
         v2 = snd;
@@ -24,7 +24,7 @@ public class ClothScript : MonoBehaviour
     public float distance = 1f;
     public int width = 11;
     public int height = 11;
-    public float invmass = 5f;
+    public float invmass = 100f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
     private Vector3[] velocities;
     private Spring[] springs;
@@ -55,7 +55,7 @@ public class ClothScript : MonoBehaviour
                 // top left to bottom right
                 springs[idx++] = new Spring(y * width + x, (y+1) * width + x+1, Mathf.Sqrt(2)); 
                 // bottom left to top right
-                springs[idx++] = new Spring((y+1) * width + x, y * width + x+1, 0.5f*Mathf.Sqrt(2));
+                springs[idx++] = new Spring((y+1) * width + x, y * width + x+1, Mathf.Sqrt(2));
             }
         }
         Debug.Assert(springs.Length == idx);
@@ -126,7 +126,7 @@ public class ClothScript : MonoBehaviour
             // gravity 
             if (i != 0 && i != (width - 1))
             {
-                velocities[i].y -= 9.81f * Time.deltaTime;
+                forces[i].y -= 9.81f/invmass;
             }
 
             // velocity damping
