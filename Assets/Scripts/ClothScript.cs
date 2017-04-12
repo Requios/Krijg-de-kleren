@@ -81,7 +81,7 @@ public class ClothScript : MonoBehaviour
         {
             for (int j = 0; j < width; j++)
             {
-                vertices[i * width + j] = new Vector3(j * distance, -i * distance, 0) + initialPos;
+                vertices[i * width + j] = new Vector3(j * distance, 0, i * distance) + initialPos;
             }
         }
         mesh.vertices = vertices;
