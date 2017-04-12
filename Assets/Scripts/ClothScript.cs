@@ -131,6 +131,17 @@ public class ClothScript : MonoBehaviour
         }
         mesh.normals = normals;
 
+        //Create uv (texture) coordinates
+        Vector2[] uv = new Vector2[width * height];
+        for (int i = 0; i < height; i++)
+        {
+            for (int j = 0; j < width; j++)
+            {
+                uv[i * width + j] = new Vector2(j / (float) (width-1), 1 - (i / (float) (height-1)));
+            }
+        }
+        mesh.uv = uv;
+
         //Find sphere
         GameObject sphere = GameObject.Find("Sphere");
         if (sphere)
