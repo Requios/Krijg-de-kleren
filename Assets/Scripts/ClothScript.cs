@@ -5,7 +5,7 @@ using UnityEngine;
 
 class Spring
 {
-    public Spring(int fst, int snd, float length, float spring=500f, float damp=-10f)
+    public Spring(int fst, int snd, float length, float spring=800f, float damp=-10f)
     {
         v1 = fst;
         v2 = snd;
@@ -25,6 +25,7 @@ public class ClothScript : MonoBehaviour
     public int width = 11;
     public int height = 11;
     public float invmass = 100f;
+    public float deltaTime = 1f/30f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
     public Vector3 windVector = new Vector3(2, 4, 5) * 0.3f;
     private Vector3[] prevPos;
@@ -33,7 +34,7 @@ public class ClothScript : MonoBehaviour
 
     Vector3 velocity(int i)
     {
-        return (currPos[i] - prevPos[i]) / Time.deltaTime;
+        return (currPos[i] - prevPos[i]) / deltaTime;
     }
 
     void buildSprings()
@@ -79,7 +80,7 @@ public class ClothScript : MonoBehaviour
         {
             for (int j = 0; j < width; j++)
             {
-                vertices[i * width + j] = new Vector3(j * distance, -i * distance, 0) + initialPos;
+                vertices[i * width + j] = new Vector3(j * distance, -i * distance*1.1f, 0) + initialPos;
             }
         }
         mesh.vertices = vertices;
@@ -146,7 +147,7 @@ public class ClothScript : MonoBehaviour
 
 
             // velocity damping
-            forces[i] -= 0.2f * velocity(i);
+            forces[i] -= 2.0f * velocity(i);
         }
 
         //solve springs with Linear Strain model (Hooke's Law)
@@ -172,7 +173,7 @@ public class ClothScript : MonoBehaviour
         for (int i = 0; i < (width * height); i++)
         {
             Vector3 tmp = currPos[i];
-            currPos[i] = currPos[i] + (currPos[i] - prevPos[i]) + forces[i]*(Time.deltaTime * Time.deltaTime * invmass);
+            currPos[i] = currPos[i] + (currPos[i] - prevPos[i]) + forces[i]*(deltaTime * deltaTime * invmass);
             prevPos[i] = tmp;
 
             // ground plane
