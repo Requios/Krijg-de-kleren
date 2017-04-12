@@ -5,7 +5,7 @@ using UnityEngine;
 
 class Spring
 {
-    public Spring(int fst, int snd, float length, float spring=800f, float damp=-10f)
+    public Spring(int fst, int snd, float length, float spring=1000f, float damp=-10f)
     {
         v1 = fst;
         v2 = snd;
@@ -27,7 +27,7 @@ public class ClothScript : MonoBehaviour
     public float invmass = 1f;
     public float dampingFactor = 0.2f;
     public Vector3 initialPos = new Vector3(-5, 15, 0);
-    public Vector3 windVector = new Vector3(2, 4, 5) * 0.3f;
+    public Vector3 windVector;
     private Vector3[] prevPos;
     private Vector3[] currPos;
     private Spring[] springs;
@@ -39,20 +39,21 @@ public class ClothScript : MonoBehaviour
 
     void buildSprings()
     {
+        float springDistance = distance * 1.0f;
         springs = new Spring[height*(width-1) + (height-1)*width + 2*((height-1)*(width-1))];
         int idx = 0;
         // horizontal springs
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < (width - 1); x++)
             {
-                springs[idx++] = new Spring(y * width + x, y * width + x + 1, distance);
+                springs[idx++] = new Spring(y * width + x, y * width + x + 1, springDistance);
             }
         }
         // vertical springs
         for (int y = 0; y < (height-1); y++) {
             for (int x = 0; x < width; x++)
             {
-                springs[idx++] = new Spring(y * width + x, (y+1) * width + x, distance);
+                springs[idx++] = new Spring(y * width + x, (y+1) * width + x, springDistance);
             }
         }
         // diagonal springs
@@ -61,9 +62,9 @@ public class ClothScript : MonoBehaviour
             for (int x = 0; x < (width-1); x++)
             {
                 // top left to bottom right
-                springs[idx++] = new Spring(y * width + x, (y + 1) * width + x + 1, Mathf.Sqrt(distance * distance));
+                springs[idx++] = new Spring(y * width + x, (y + 1) * width + x + 1, Mathf.Sqrt(springDistance * springDistance+ springDistance*springDistance));
                 // bottom left to top right
-                springs[idx++] = new Spring((y + 1) * width + x, y * width + x + 1, Mathf.Sqrt(distance * distance));
+                springs[idx++] = new Spring((y + 1) * width + x, y * width + x + 1, Mathf.Sqrt(springDistance * springDistance + springDistance*springDistance));
             }
         }
         Debug.Assert(springs.Length == idx);
@@ -80,7 +81,7 @@ public class ClothScript : MonoBehaviour
         {
             for (int j = 0; j < width; j++)
             {
-                vertices[i * width + j] = new Vector3(j * distance, -i * distance*1.1f, 0) + initialPos;
+                vertices[i * width + j] = new Vector3(j * distance, 0, i * distance) + initialPos;
             }
         }
         mesh.vertices = vertices;
@@ -122,7 +123,11 @@ public class ClothScript : MonoBehaviour
         buildSprings();
     }
 
-
+    bool isFixed(int i)
+    {
+        int c = Math.Max(1, width / 3);
+        return (i < c) || ((i >= (width - c)) && (i < width));
+    }
 
     void FixedUpdate()
     {
@@ -137,12 +142,12 @@ public class ClothScript : MonoBehaviour
         for (int i = 0; i < (width * height); i++)
         {
             forces[i] = new Vector3(0, 0, 0);
-            if (i != 0 && i != (width - 1))
+            if(!isFixed(i))
             {
                 // gravity 
                 forces[i].y -= 9.81f/invmass;
                 // wind
-                forces[i] += windVector+windVector.normalized * (0.1f * Mathf.Sin(Time.time));
+                forces[i] += windVector + windVector.normalized * (0.5f * Mathf.Sin(0.01f*Time.time));
             }
             
             // velocity damping
@@ -158,11 +163,11 @@ public class ClothScript : MonoBehaviour
             float spring = -springs[i].springFactor * (dist - springs[i].restLength);
             float damp = springs[i].dampingFactor * (Vector3.Dot(dvel, dpos) / dist);
             Vector3 force = (spring + damp) * dpos.normalized;
-            if(springs[i].v1 != 0 && springs[i].v1 != (width - 1))
+            if (!isFixed(springs[i].v1))
             {
                 forces[springs[i].v1] += force;
             }
-            if(springs[i].v2 != 0 && springs[i].v2 != (width - 1))
+            if (!isFixed(springs[i].v2))
             {
                 forces[springs[i].v2] -= force;
             }
