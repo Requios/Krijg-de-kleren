@@ -27,13 +27,13 @@ public class ClothScript : MonoBehaviour
     public Vector3 initialPos = new Vector3(-5, 15, 0);
     [Tooltip("Whether to start flat")]
     public bool startHorizontal = true;
-    public float stretchedStart = 1.5f;
+    public float stretchedStart = 1f;
 
     [Header("Behavior")]
     public Fixed fixedVertices = Fixed.topCorners;
     public float invmass = 1f;
     [Tooltip("How strong the forces of the spring are. Higher is stronger.")]
-    public float springFactor = 1000f;
+    public float springFactor = 100f;
     [Tooltip("How strong the springs are dampened (preventing infinite oscillation). Higher is stronger.")]
     public float dampingFactor = -10f;
     [Tooltip("Velocity damping. Lower is stronger.")]
@@ -203,7 +203,7 @@ public class ClothScript : MonoBehaviour
                 // gravity 
                 forces[i].y -= 9.81f/invmass;
                 // wind
-                forces[i] += windVector + windVector.normalized * (0.5f * Mathf.Sin(0.01f*Time.time));
+                forces[i] += windVector + windVector.normalized * (0.5f * Mathf.Sin(Time.time));
             }
             
             // velocity damping
